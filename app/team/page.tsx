@@ -7,25 +7,25 @@ import Link from 'next/link'
 export default function MyTeamPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  // ✨ NEW: State to track if an image is currently uploading
+  const [uploadingLogo, setUploadingLogo] = useState(false) 
+  
   const [user, setUser] = useState<any>(null)
   const [team, setTeam] = useState<any>(null)
   const [roster, setRoster] = useState<any[]>([])
   
   const [leagueRules, setLeagueRules] = useState<any>(null)
-  // ✨ NEW: UI Indicator to assure users their session is safe
   const [sessionStatus, setSessionStatus] = useState('')
 
   useEffect(() => {
     fetchUserData()
   }, [])
 
-  // ✨ NEW: Real-time Auto-Saver to Browser Cache
   useEffect(() => {
     if (roster.length > 0 && team?.team_id) {
       sessionStorage.setItem(`roster_cache_${team.team_id}`, JSON.stringify(roster))
       setSessionStatus('Draft Auto-Saved ☁️')
       
-      // Hide the text after a few seconds so it doesn't distract
       const timer = setTimeout(() => setSessionStatus(''), 2500)
       return () => clearTimeout(timer)
     }
@@ -50,13 +50,11 @@ export default function MyTeamPage() {
         if (playerData) {
           let sortedRoster = playerData.sort((a, b) => (a.full_name || a.name || '').localeCompare(b.full_name || b.name || ''))
           
-          // ✨ AUTO-RESTORE LOGIC: On screen reload, intercept the DB data and merge any unsaved changes!
           const cachedSession = sessionStorage.getItem(`roster_cache_${teamData.team_id}`)
           if (cachedSession) {
             const parsedCache = JSON.parse(cachedSession)
             sortedRoster = sortedRoster.map(dbPlayer => {
               const cachedPlayer = parsedCache.find((cp: any) => cp.player_id === dbPlayer.player_id)
-              // If they had unsaved tactics in the cache, overwrite the DB data with them
               return cachedPlayer ? { ...dbPlayer, ...cachedPlayer } : dbPlayer
             })
           }
@@ -66,6 +64,47 @@ export default function MyTeamPage() {
       }
     }
     setLoading(false)
+  }
+
+  // ✨ NEW: Logo Upload Handler
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setUploadingLogo(true)
+      const file = event.target.files?.[0]
+      if (!file) return
+
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${team.team_id}-${Date.now()}.${fileExt}`
+
+      // 1. Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('team-logos')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      // 2. Get Public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('team-logos')
+        .getPublicUrl(filePath)
+
+      // 3. Save to Database
+      const { error: updateError } = await supabase
+        .from('teams')
+        .update({ logo_url: publicUrl })
+        .eq('team_id', team.team_id)
+
+      if (updateError) throw updateError
+
+      // 4. Update the UI instantly
+      setTeam((prev: any) => ({ ...prev, logo_url: publicUrl }))
+      alert('Franchise Logo updated successfully!')
+
+    } catch (error: any) {
+      alert(`Upload failed: ${error.message}`)
+    } finally {
+      setUploadingLogo(false)
+    }
   }
 
   // --- TACTICS HANDLERS ---
@@ -154,7 +193,6 @@ export default function MyTeamPage() {
 
       await Promise.all(updatePromises)
       
-      // Clear the local cache once it's officially locked into the DB
       sessionStorage.removeItem(`roster_cache_${team.team_id}`)
       
       alert("Match Tactics Saved Successfully! Your lineup is locked in.")
@@ -189,13 +227,38 @@ export default function MyTeamPage() {
       
       {/* HEADER SECTION */}
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-3xl border border-slate-700 shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6">
-        <div>
-          <p className="text-blue-400 font-bold tracking-widest uppercase text-xs mb-1">Franchise Locker Room</p>
-          <h1 className="text-4xl font-black text-white">{team.team_name}</h1>
-        </div>
-        <div className="flex gap-4 items-center">
+        
+        {/* ✨ UPDATED: Franchise Logo & Name Section */}
+        <div className="flex items-center gap-6">
+          <div className="relative group">
+            {team.logo_url ? (
+              <img src={team.logo_url} alt="Team Logo" className="w-24 h-24 rounded-full object-cover border-4 border-slate-700 shadow-lg bg-slate-900" />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-slate-900 border-2 border-dashed border-slate-600 flex items-center justify-center text-3xl">🛡️</div>
+            )}
+            
+            {/* Hover overlay to change logo */}
+            <label className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+              <span className="text-[10px] font-black text-white uppercase tracking-widest text-center">
+                {uploadingLogo ? '...' : 'Upload'}
+              </span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleLogoUpload} 
+                disabled={uploadingLogo} 
+              />
+            </label>
+          </div>
           
-          {/* ✨ Subtly lets the manager know their progress is saved locally */}
+          <div>
+            <p className="text-blue-400 font-bold tracking-widest uppercase text-xs mb-1">Franchise Locker Room</p>
+            <h1 className="text-4xl font-black text-white">{team.team_name}</h1>
+          </div>
+        </div>
+
+        <div className="flex gap-4 items-center">
           {sessionStatus && (
             <span className="text-xs font-bold text-slate-400 animate-pulse mr-2">
               {sessionStatus}

@@ -90,25 +90,47 @@ export default function MatchesPage() {
               </div>
 
               <div className="p-8 flex items-center justify-between gap-8">
-                <div className="flex-1 text-right w-full">
-                  <h3 className="text-2xl font-black text-white">{match.team_a?.team_name}</h3>
+                
+                {/* ✨ UPDATED: TEAM A (Left Side, aligned right) */}
+                <div className="flex-1 flex flex-col items-end w-full">
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-2xl font-black text-white">{match.team_a?.team_name}</h3>
+                    {match.team_a?.logo_url ? (
+                      <img src={match.team_a.logo_url} alt="Logo" className="w-12 h-12 rounded-full object-cover border-2 border-slate-700 bg-slate-900 shadow-md" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-slate-900 border-2 border-dashed border-slate-600 flex items-center justify-center text-xl">🛡️</div>
+                    )}
+                  </div>
                   {match.status === 'Completed' && (
-                    <p className="text-slate-300 text-xl font-bold mt-2">{match.team_a_runs}/{match.team_a_wickets} <span className="text-sm text-slate-500">({match.team_a_overs} ov)</span></p>
+                    <p className="text-slate-300 text-xl font-bold mt-2 mr-16">{match.team_a_runs}/{match.team_a_wickets} <span className="text-sm text-slate-500">({match.team_a_overs} ov)</span></p>
                   )}
                 </div>
 
                 <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center font-black text-slate-500 border-2 border-slate-800 shrink-0">VS</div>
 
-                <div className="flex-1 text-left w-full">
-                  <h3 className="text-2xl font-black text-white">{match.team_b?.team_name}</h3>
+                {/* ✨ UPDATED: TEAM B (Right Side, aligned left) */}
+                <div className="flex-1 flex flex-col items-start w-full">
+                  <div className="flex items-center gap-4">
+                    {match.team_b?.logo_url ? (
+                      <img src={match.team_b.logo_url} alt="Logo" className="w-12 h-12 rounded-full object-cover border-2 border-slate-700 bg-slate-900 shadow-md" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-slate-900 border-2 border-dashed border-slate-600 flex items-center justify-center text-xl">🛡️</div>
+                    )}
+                    <h3 className="text-2xl font-black text-white">{match.team_b?.team_name}</h3>
+                  </div>
                   {match.status === 'Completed' && (
-                    <p className="text-slate-300 text-xl font-bold mt-2">{match.team_b_runs}/{match.team_b_wickets} <span className="text-sm text-slate-500">({match.team_b_overs} ov)</span></p>
+                    <p className="text-slate-300 text-xl font-bold mt-2 ml-16">{match.team_b_runs}/{match.team_b_wickets} <span className="text-sm text-slate-500">({match.team_b_overs} ov)</span></p>
                   )}
                 </div>
+
               </div>
               
+              {/* ✨ UPDATED: Winner Banner with mini-logo */}
               {match.status === 'Completed' && match.winner && (
-                <div className="bg-slate-900/50 p-4 text-center border-t border-slate-700">
+                <div className="bg-slate-900/50 p-4 flex items-center justify-center gap-3 border-t border-slate-700">
+                  {match.winner.logo_url && (
+                    <img src={match.winner.logo_url} alt="Winner Logo" className="w-6 h-6 rounded-full object-cover" />
+                  )}
                   <p className="text-yellow-400 font-bold">🏆 {match.winner.team_name} won {match.win_margin ? `(${match.win_margin})` : ''}</p>
                 </div>
               )}

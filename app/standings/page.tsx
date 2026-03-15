@@ -84,12 +84,27 @@ export default function StandingsPage() {
                       </div>
                     </td>
                     
-                    {/* Franchise Name */}
+                    {/* ✨ UPDATED: Franchise Name & Logo Section */}
                     <td className="py-5 pl-4">
-                      <p className="font-black text-white text-lg">{team.team_name}</p>
-                      {isPlayoffPosition && index === 0 && (
-                        <p className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest mt-1">League Leaders</p>
-                      )}
+                      <div className="flex items-center gap-4">
+                        {team.logo_url ? (
+                          <img 
+                            src={team.logo_url} 
+                            alt={`${team.team_name} Logo`} 
+                            className="w-10 h-10 rounded-full object-cover border border-slate-600 shadow-md bg-slate-900 shrink-0" 
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-slate-900 border border-dashed border-slate-600 flex items-center justify-center text-sm shrink-0">
+                            🛡️
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-black text-white text-lg leading-tight">{team.team_name}</p>
+                          {isPlayoffPosition && index === 0 && (
+                            <p className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest mt-1">League Leaders</p>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     
                     {/* Stats */}

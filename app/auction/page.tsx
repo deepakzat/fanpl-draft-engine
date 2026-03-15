@@ -14,8 +14,8 @@ export default function LiveAuctionRoom() {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   
-  // Track teams with their names AND current purses
-  const [teams, setTeams] = useState<Record<string, { name: string, purse: number }>>({})
+  // ✨ UPDATED: Added logo_url to the team tracker state
+  const [teams, setTeams] = useState<Record<string, { name: string, purse: number, logo_url: string }>>({})
   const [myTeamId, setMyTeamId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -23,15 +23,17 @@ export default function LiveAuctionRoom() {
       const { data: { session } } = await supabase.auth.getSession()
       const userId = session?.user?.id
 
-      if (session?.user?.email === 'deepakkannan113@gmail.com') {
+      if (session?.user?.email === 'YOUR_ADMIN_EMAIL@DOMAIN.COM') {
         setIsAdmin(true)
       }
 
-      // 1. Fetch all teams (now including the purse column)
+      // 1. Fetch all teams (✨ UPDATED: now selecting logo_url)
       const fetchTeams = async () => {
-        const { data: teamsData } = await supabase.from('teams').select('id, name, purse')
-        const teamDict: Record<string, { name: string, purse: number }> = {}
-        teamsData?.forEach(t => { teamDict[t.id] = { name: t.name, purse: t.purse } })
+        const { data: teamsData } = await supabase.from('teams').select('id, name, purse, logo_url')
+        const teamDict: Record<string, { name: string, purse: number, logo_url: string }> = {}
+        teamsData?.forEach(t => { 
+          teamDict[t.id] = { name: t.name, purse: t.purse, logo_url: t.logo_url } 
+        })
         setTeams(teamDict)
       }
       await fetchTeams()
@@ -40,7 +42,7 @@ export default function LiveAuctionRoom() {
         const { data: myTeam } = await supabase
           .from('teams')
           .select('id')
-          .eq('user_id', userId) // Check this matches your DB column (user_id / owner_id)
+          .eq('user_id', userId) 
           .single()
         
         if (myTeam) setMyTeamId(myTeam.id)
@@ -58,10 +60,8 @@ export default function LiveAuctionRoom() {
 
     loadAuctionRoom()
 
-    // 2. Real-time listener for BOTH Players and Teams
+    // 2. Real-time listener
     const channel = supabase.channel('live-auction-room')
-      
-      // Listen for bids and player changes
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
         const updatedPlayer = payload.new as any
         if (updatedPlayer.auction_status === 'On Block') {
@@ -70,13 +70,12 @@ export default function LiveAuctionRoom() {
           setActivePlayer(null)
         }
       })
-      
-      // Listen for purse deductions so the budget updates instantly for everyone!
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'teams' }, (payload) => {
         const updatedTeam = payload.new as any
         setTeams(prev => ({
           ...prev,
-          [updatedTeam.id]: { name: updatedTeam.name, purse: updatedTeam.purse }
+          // ✨ UPDATED: Ensure the logo_url is kept in sync during real-time updates
+          [updatedTeam.id]: { name: updatedTeam.name, purse: updatedTeam.purse, logo_url: updatedTeam.logo_url }
         }))
       })
       .subscribe()
@@ -101,7 +100,6 @@ export default function LiveAuctionRoom() {
 
     const nextAmount = getNextBid(activePlayer.sold_price, activePlayer.base_price)
 
-    // ✨ NEW: Stop them if they don't have enough money in their purse!
     if (myTeamId && teams[myTeamId]?.purse < nextAmount) {
       alert("Insufficient funds in your purse for this bid!")
       return
@@ -115,14 +113,12 @@ export default function LiveAuctionRoom() {
     if (error) alert("Bid failed! Check console.")
   }
 
-  // ✨ THE ADMIN HAMMER: Sell the player AND deduct the funds
   const handleSellPlayer = async () => {
     if (!activePlayer) return
     
     const isSold = activePlayer.sold_price > 0 && activePlayer.team_id
     const finalStatus = isSold ? 'Sold' : 'Unsold'
 
-    // 1. Mark the player as Sold
     const { error: playerError } = await supabase
       .from('players')
       .update({ auction_status: finalStatus })
@@ -133,7 +129,6 @@ export default function LiveAuctionRoom() {
       return
     }
 
-    // 2. Deduct the money from the winning team's purse
     if (isSold) {
       const winningTeam = teams[activePlayer.team_id]
       const newPurseBalance = winningTeam.purse - activePlayer.sold_price
@@ -174,7 +169,6 @@ export default function LiveAuctionRoom() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
       
-      {/* ✨ MANAGER'S PURSE HUD */}
       {myTeamId && (
         <div className="absolute top-6 right-6 bg-slate-900 border border-slate-700 px-6 py-3 rounded-2xl shadow-lg animate-fade-in-down z-10">
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{teams[myTeamId]?.name} Purse</p>
@@ -225,9 +219,20 @@ export default function LiveAuctionRoom() {
           
           {activePlayer.team_id ? (
             <div className="animate-fade-in-up">
-              <div className="w-32 h-32 bg-slate-900 border border-slate-700 rounded-full mx-auto mb-6 flex items-center justify-center text-5xl shadow-inner">
-                🏏
-              </div>
+              
+              {/* ✨ UPDATED: Display Team Logo if it exists, otherwise show default cricket bat */}
+              {teams[activePlayer.team_id]?.logo_url ? (
+                <img 
+                  src={teams[activePlayer.team_id].logo_url} 
+                  alt={`${teams[activePlayer.team_id].name} Logo`}
+                  className="w-32 h-32 bg-slate-900 border-4 border-slate-700 rounded-full mx-auto mb-6 flex items-center justify-center shadow-inner object-cover"
+                />
+              ) : (
+                <div className="w-32 h-32 bg-slate-900 border border-slate-700 rounded-full mx-auto mb-6 flex items-center justify-center text-5xl shadow-inner">
+                  🏏
+                </div>
+              )}
+
               <h2 className="text-3xl font-black text-white leading-tight">
                 {teams[activePlayer.team_id]?.name || 'Unknown Franchise'}
               </h2>
