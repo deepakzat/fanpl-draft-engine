@@ -10,36 +10,39 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
   const [authorized, setAuthorized] = useState(false)
 
   useEffect(() => {
-    // List the URLs that anyone is allowed to see without logging in
-    const publicPaths = ['/', '/login']
+    // ✨ THE FIX: A much stronger check that ignores trailing slashes
+    const isPublic = 
+      pathname === '/' || 
+      pathname.startsWith('/login') || 
+      pathname.startsWith('/forgot-password') || 
+      pathname.startsWith('/reset-password')
 
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
 
-      // If they are NOT logged in, AND trying to access a private page...
-      if (!session?.user && !publicPaths.includes(pathname)) {
-        router.push('/') // Kick them to the homepage
+      if (!session?.user && !isPublic) {
+        console.log("🚫 Bouncer blocked access to:", pathname)
+        router.push('/')
       } else {
-        // Otherwise, let them through
         setAuthorized(true)
       }
     }
 
     checkAuth()
 
-    // Listen for logouts in real-time
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user && !publicPaths.includes(pathname)) {
+      if (!session?.user && !isPublic) {
         router.push('/')
+      } else {
+        setAuthorized(true)
       }
     })
 
     return () => subscription.unsubscribe()
   }, [pathname, router])
 
-  // Prevent the page from flashing before the redirect happens
   if (!authorized) {
-    return <div className="min-h-screen bg-slate-950"></div> 
+    return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-500">Loading...</div> 
   }
 
   return <>{children}</>
