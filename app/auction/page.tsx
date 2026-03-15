@@ -23,7 +23,7 @@ export default function LiveAuctionRoom() {
       const { data: { session } } = await supabase.auth.getSession()
       const userId = session?.user?.id
 
-      if (session?.user?.email === 'YOUR_ADMIN_EMAIL@DOMAIN.COM') {
+      if (session?.user?.email === 'deepakkannan113@gmail.com') {
         setIsAdmin(true)
       }
 
